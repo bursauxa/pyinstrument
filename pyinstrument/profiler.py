@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import timeit
 import warnings
+import sys
 
-from . import recorders
-from . import renderers
-from .util import object_with_import_path
-from pyinstrument_cext import setstatprofile
+from pyinstrument.recorders import TimeAggregatingRecorder
+from pyinstrument.recorders import TimelineRecorder
+from pyinstrument.renderers import ConsoleRenderer
+from pyinstrument.renderers import HTMLRenderer
 
 timer = timeit.default_timer
 
@@ -32,10 +33,10 @@ class Profiler(object):
 
     def start(self):
         self.last_profile_time = timer()
-        setstatprofile(self._profile, self.interval)
+        sys.setprofile(self._profile)
 
     def stop(self):
-        setstatprofile(None)
+        sys.setprofile(None)
 
     def __enter__(self):
         self.start()
@@ -102,17 +103,17 @@ class Profiler(object):
 
 def get_recorder_class(name):
     if name == 'time_aggregating':
-        return recorders.TimeAggregatingRecorder
+        return TimeAggregatingRecorder
     elif name == 'timeline':
-        return recorders.TimelineRecorder
+        return TimelineRecorder
     else:
-        return object_with_import_path(name)
+        return None
 
 
 def get_renderer_class(name):
     if name == 'text':
-        return renderers.ConsoleRenderer
+        return ConsoleRenderer
     elif name == 'html':
-        return renderers.HTMLRenderer
+        return HTMLRenderer
     else:
-        return object_with_import_path(name)
+        return None

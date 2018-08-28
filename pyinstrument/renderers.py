@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-import abc
 import os
-from . import six
 
 class Renderer(object):
     preferred_recorder = ''
@@ -22,18 +20,22 @@ class ConsoleRenderer(Renderer):
         super(ConsoleRenderer, self).__init__(**kwargs)
 
     def render(self, frame, indent=u'', child_indent=u''):
-        colors = colors_enabled if self.color else colors_disabled
-        time_str = '{:.3f}'.format(frame.time())
+        if self.color:
+            colors = colors_enabled 
+        else:
+            colors = colors_disabled
+        time_str = '''%.3f''' % (frame.time())
 
         if self.color:
             time_str = self._ansi_color_for_frame(frame) + time_str + colors.end
 
-        result = u'{indent}{time_str} {function}  {c.faint}{code_position}{c.end}\n'.format(
-            indent=indent,
-            time_str=time_str,
-            function=frame.function,
-            code_position=frame.code_position_short,
-            c=colors)
+        result = u'%(indent)s%(time_str)s %(function)s  %(faint)s%(code_position)s%(end)s\n' % ({
+            'indent': indent,
+            'time_str': time_str,
+            'function': frame.function,
+            'code_position': frame.code_position_short,
+            'faint': colors.faint,
+            'end': colors.end})
 
         children = [f for f in frame.children if f.proportion_of_total > 0.01]
 
@@ -42,10 +44,17 @@ class ConsoleRenderer(Renderer):
 
         for child in children:
             if child is not last_child:
-                c_indent = child_indent + (u'├─ ' if self.unicode else '|- ')
-                cc_indent = child_indent + (u'│  ' if self.unicode else '|  ')
+                if self.unicode:
+                    c_indent = child_indent + u'├─ '
+                    cc_indent = child_indent + u'│  '
+                else:
+                    c_indent = child_indent + '|- '
+                    cc_indent = child_indent + '|  '
             else:
-                c_indent = child_indent + (u'└─ ' if self.unicode else '`- ')
+                if self.unicode:
+                    c_indent = child_indent + u'└─ '
+                else:
+                    c_indent = child_indent + '`- '
                 cc_indent = child_indent + u'   '
             result += self.render(child, indent=c_indent, child_indent=cc_indent)
 
@@ -69,28 +78,31 @@ class HTMLRenderer(Renderer):
     def render(self, frame):
         resources_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources/')
 
-        with open(os.path.join(resources_dir, 'style.css')) as f:
-            css = f.read()
+        f = os.path.join(resources_dir, 'style.css')
+        css = f.read()
+        f.close()
 
-        with open(os.path.join(resources_dir, 'profile.js')) as f:
-            js = f.read()
+        os.path.join(resources_dir, 'profile.js')
+        js = f.read()
+        f.close()
 
-        with open(os.path.join(resources_dir, 'jquery-1.11.0.min.js')) as f:
-            jquery_js = f.read()
+        f = os.path.join(resources_dir, 'jquery-1.11.0.min.js')
+        jquery_js = f.read()
+        f.close()
 
         body = self.render_frame(frame)
 
         page = '''
             <html>
             <head>
-                <style>{css}</style>
-                <script>{jquery_js}</script>
+                <style>%(css)s</style>
+                <script>%(jquery_js)s</script>
             </head>
             <body>
-                {body}
-                <script>{js}</script>
+                %(body)s
+                <script>%(js)s</script>
             </body>
-            </html>'''.format(css=css, js=js, jquery_js=jquery_js, body=body)
+            </html>''' % ({'css': css, 'js': js, 'jquery_js': jquery_js, 'body': body})
 
         return page
 
@@ -98,24 +110,27 @@ class HTMLRenderer(Renderer):
         start_collapsed = all(child.proportion_of_total < 0.1 for child in frame.children)
 
         extra_class = ''
-        extra_class += 'collapse ' if start_collapsed else ''
-        extra_class += 'no_children ' if not frame.children else ''
-        extra_class += 'application ' if frame.is_application_code else ''
+        if start_collapsed:
+            extra_class += 'collapse '
+        if not frame.children:
+            extra_class += 'no_children '
+        if frame.is_application_code:
+            extra_class += 'application '
 
-        result = '''<div class="frame {extra_class}" data-time="{time}" date-parent-time="{parent_proportion}">
+        result = '''<div class="frame %(extra_class)s" data-time="%(time)s" date-parent-time="%(parent_proportion)s">
             <div class="frame-info">
-                <span class="time">{time:.3f}s</span>
-                <span class="total-percent">{total_proportion:.1%}</span>
-                <!--<span class="parent-percent">{parent_proportion:.1%}</span>-->
-                <span class="function">{function}</span>
-                <span class="code-position">{code_position}</span>
-            </div>'''.format(
-                time=frame.time(),
-                function=frame.function,
-                code_position=frame.code_position_short,
-                parent_proportion=frame.proportion_of_parent,
-                total_proportion=frame.proportion_of_total,
-                extra_class=extra_class)
+                <span class="time">%(time)3fs</span>
+                <span class="total-percent">%(total_proportion).1%</span>
+                <!--<span class="parent-percent">%(parent_proportion).1%</span>-->
+                <span class="function">%(function)s</span>
+                <span class="code-position">%(code_position)s</span>
+            </div>''' % ({
+                'time': frame.time(),
+                'function': frame.function,
+                'code_position': frame.code_position_short,
+                'parent_proportion': frame.proportion_of_parent,
+                'total_proportion': frame.proportion_of_total,
+                'extra_class': extra_class})
 
         result += '<div class="frame-children">'
 

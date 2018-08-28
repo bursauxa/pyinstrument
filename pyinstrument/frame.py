@@ -1,6 +1,42 @@
 import sys, os
-from operator import methodcaller
 
+from os.path import abspath, join, commonprefix
+
+# replacement for os.path.relpath (2.6 and above)
+# extracted from https://github.com/python/cpython/blob/master/Lib/posixpath.py
+# several safety measures have been removed (os.fspath, better try-except statement, paths as bytes)
+def relpath_unsafe(path, start=None):
+    """Return a relative version of a path"""
+
+    if not path:
+        raise ValueError("no path specified")
+
+    curdir = '.'
+    sep = os.sep
+    pardir = '..'
+
+    if start is None:
+        start = curdir
+
+    try:
+        start_list = [x for x in abspath(start).split(sep) if x]
+        path_list = [x for x in abspath(path).split(sep) if x]
+        # Work out how much of the filepath is shared by start and path.
+        i = len(commonprefix([start_list, path_list]))
+
+        rel_list = [pardir] * (len(start_list)-i) + path_list[i:]
+        if not rel_list:
+            return curdir
+        return join(*rel_list)
+    except (TypeError, AttributeError, BytesWarning, DeprecationWarning):
+        raise
+
+# replacement for operator.methodcaller (2.6 and above)
+# equivalent definition provided by https://docs.python.org/3/library/operator.html#operator.methodcaller
+def methodcaller(name, *args, **kwargs):
+    def caller(obj):
+        return getattr(obj, name)(*args, **kwargs)
+    return caller
 
 class Frame(object):
     """
@@ -31,6 +67,7 @@ class Frame(object):
         """ Return the path resolved against the closest entry in sys.path """
         if not hasattr(self, '_file_path_short'):
             if self.file_path:
+                file_path_norm = os.path.normcase(os.path.normpath(self.file_path))
                 result = None
 
                 for path in sys.path:
@@ -38,7 +75,7 @@ class Frame(object):
                     # will result in exception, because it cannot compute a relpath in this case.
                     # The root cause is that on Windows, there is no root dir like '/' on Linux.
                     try:
-                        candidate = os.path.relpath(self.file_path, path)
+                        candidate = relpath_unsafe(file_path_norm, os.path.normcase(os.path.normpath(path)))
                     except ValueError:
                         continue
 

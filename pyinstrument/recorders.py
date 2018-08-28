@@ -1,8 +1,5 @@
 from collections import deque
-import abc
-from .frame import TimeAggregatingFrame, TimelineFrame
-from . import six
-
+from pyinstrument.frame import TimeAggregatingFrame, TimelineFrame
 
 class Recorder(object):
     '''
