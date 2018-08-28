@@ -65,3 +65,12 @@ As a consequence, the HTML renderer was not tested.
 However, all the code in `renderers.py` was backported, so the renderer itself *should* work.
 
 This version was only tested on Linux (a CentOS as old as Python 2.4), but chances it works on Windows are high.
+
+### Other
+
+Items that will explicitly not be maintained as part of this backport have been removed from the repository. They are:
+
+- examples, because all but one were Django-based, and the last one would require the command-line pyinstrument
+- metrics, for many reasons: the c extension is not supported, cProfile is only for Python 2.5+, and Django is partially required
+- tests, because pytest no longer supports anything before Python 2.7 and it actually breaks
+- development, maintenance and setup files and documentation: this fork will never be published as a package
